@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"strconv"
-	"strings"
 )
 
 const (
@@ -24,33 +24,27 @@ func main() {
 		}
 	}()
 
+	re := regexp.MustCompile(`^(\d+)-(\d+) ([a-z]): ([a-z]+)$`)
+
 	valid := 0
 	valid2 := 0
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		fields := strings.Fields(scanner.Text())
-		if len(fields) != 3 {
-			log.Fatal("Invalid line format")
+		matches := re.FindStringSubmatch(scanner.Text())
+		if matches == nil {
+			log.Fatal("Failed to match line")
 		}
-		r := strings.Split(fields[0], "-")
-		if len(r) != 2 {
-			log.Fatal("Invalid range")
-		}
-		a, err := strconv.Atoi(r[0])
+		a, err := strconv.Atoi(matches[1])
 		if err != nil {
 			log.Fatal(err)
 		}
-		b, err := strconv.Atoi(r[1])
+		b, err := strconv.Atoi(matches[2])
 		if err != nil {
 			log.Fatal(err)
 		}
-		ch := strings.TrimRight(fields[1], ":")
-		if len(ch) != 1 {
-			log.Fatal("Invalid char")
-		}
-		c := ch[0]
-		pass := []byte(fields[2])
+		c := matches[3][0]
+		pass := []byte(matches[4])
 
 		count := 0
 		for _, i := range pass {
@@ -71,10 +65,10 @@ func main() {
 			valid2++
 		}
 	}
-
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Println("Part 1:", valid)
 	fmt.Println("Part 2:", valid2)
 }
