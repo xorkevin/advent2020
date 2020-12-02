@@ -30,7 +30,13 @@ func main() {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		fields := strings.Fields(scanner.Text())
+		if len(fields) != 3 {
+			log.Fatal("Invalid line format")
+		}
 		r := strings.Split(fields[0], "-")
+		if len(r) != 2 {
+			log.Fatal("Invalid range")
+		}
 		a, err := strconv.Atoi(r[0])
 		if err != nil {
 			log.Fatal(err)
@@ -39,19 +45,29 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		c := strings.TrimRight(fields[1], ":")[0]
+		ch := strings.TrimRight(fields[1], ":")
+		if len(ch) != 1 {
+			log.Fatal("Invalid char")
+		}
+		c := ch[0]
+		pass := []byte(fields[2])
+
 		count := 0
-		for _, i := range fields[2] {
-			if i == rune(c) {
+		for _, i := range pass {
+			if i == c {
 				count++
 			}
 		}
 		if count >= a && count <= b {
 			valid++
 		}
-		if fields[2][a-1] == c && fields[2][b-1] != c {
-			valid2++
-		} else if fields[2][a-1] != c && fields[2][b-1] == c {
+		l := len(pass)
+		if !inBounds(a-1, 0, l-1) || !inBounds(b-1, 0, l-1) {
+			log.Fatal("Invalid indicies")
+		}
+		c1 := pass[a-1]
+		c2 := pass[b-1]
+		if c1 != c2 && (c1 == c || c2 == c) {
 			valid2++
 		}
 	}
@@ -61,4 +77,8 @@ func main() {
 	}
 	fmt.Println("Part 1:", valid)
 	fmt.Println("Part 2:", valid2)
+}
+
+func inBounds(a, l, h int) bool {
+	return a >= l && a <= h
 }
