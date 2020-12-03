@@ -32,20 +32,21 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println(getCount(3, 1, m))
-	fmt.Println(getCount(1, 1, m) * getCount(3, 1, m) * getCount(5, 1, m) * getCount(7, 1, m) * getCount(1, 2, m))
+	fmt.Println("Part 1:", getCount(3, 1, m))
+	fmt.Println("Part 2:", getCount(1, 1, m)*getCount(3, 1, m)*getCount(5, 1, m)*getCount(7, 1, m)*getCount(1, 2, m))
 }
 
 func getCount(x, y int, m [][]byte) int {
 	count := 0
 	i := 0
 	j := 0
+	w := len(m[0])
 	for i < len(m) {
 		if m[i][j] == '#' {
 			count++
 		}
 		i += y
-		j = (j + x) % len(m[0])
+		j = (j + x) % w
 	}
 	return count
 }
