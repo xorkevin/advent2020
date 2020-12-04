@@ -52,6 +52,9 @@ func main() {
 		f := strings.Fields(line)
 		for _, i := range f {
 			k := strings.Split(i, ":")
+			if len(k) != 2 {
+				log.Fatal("invalid kv pair")
+			}
 			v := k[1]
 			var err error
 			switch k[0] {
@@ -103,28 +106,13 @@ func main() {
 }
 
 func passIsValid(p Passport) bool {
-	if p.byr == 0 {
-		return false
-	}
-	if p.iyr == 0 {
-		return false
-	}
-	if p.eyr == 0 {
-		return false
-	}
-	if p.hgt == "" {
-		return false
-	}
-	if p.hcl == "" {
-		return false
-	}
-	if p.ecl == "" {
-		return false
-	}
-	if p.pid == "" {
-		return false
-	}
-	return true
+	return p.byr != 0 &&
+		p.iyr != 0 &&
+		p.eyr != 0 &&
+		p.hgt != "" &&
+		p.hcl != "" &&
+		p.ecl != "" &&
+		p.pid != ""
 }
 
 var (
