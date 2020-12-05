@@ -28,8 +28,8 @@ func main() {
 	maxC := 0
 	minC := 99999999
 
-	grid := make([][]byte, 0, 97)
-	for i := 0; i < 97; i++ {
+	grid := make([][]byte, 0, 128)
+	for i := 0; i < 128; i++ {
 		grid = append(grid, make([]byte, 8))
 	}
 
@@ -53,7 +53,7 @@ func main() {
 			minC = c
 		}
 
-		grid[r-6][c] = '#'
+		grid[r][c] = '#'
 	}
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
@@ -61,11 +61,8 @@ func main() {
 
 	fmt.Println("Part 1:", max)
 
-	fmt.Println(maxR, maxC)
-	fmt.Println(minR, minC)
-
 	for n, i := range grid {
-		fmt.Printf("%4d", n+6)
+		fmt.Printf("%4d ", n)
 		for _, j := range i {
 			if j != '#' {
 				fmt.Print(".")
