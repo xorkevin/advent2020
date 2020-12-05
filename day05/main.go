@@ -35,7 +35,7 @@ func main() {
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		r, c := seatID([]byte(scanner.Text()))
+		r, c := seat([]byte(scanner.Text()))
 		id := r*8 + c
 		if id > max {
 			max = id
@@ -79,20 +79,19 @@ func main() {
 	fmt.Println("Part 2:", 69*8+7)
 }
 
-func seatID(b []byte) (int, int) {
-	r := calcNum(b[:7], 128)
-	c := calcNum(b[7:], 8)
+func seat(b []byte) (int, int) {
+	r := calcNum(b[:7])
+	c := calcNum(b[7:])
 	return r, c
 }
 
-func calcNum(b []byte, k int) int {
+func calcNum(b []byte) int {
 	n := 0
-	k /= 2
 	for _, i := range b {
+		n *= 2
 		if i == 'B' || i == 'R' {
-			n += k
+			n++
 		}
-		k /= 2
 	}
 	return n
 }
