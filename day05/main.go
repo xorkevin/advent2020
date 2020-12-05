@@ -23,10 +23,6 @@ func main() {
 	}()
 
 	max := 0
-	maxR := 0
-	minR := 99999999
-	maxC := 0
-	minC := 99999999
 
 	grid := make([][]byte, 0, 128)
 	for i := 0; i < 128; i++ {
@@ -39,18 +35,6 @@ func main() {
 		id := r*8 + c
 		if id > max {
 			max = id
-		}
-		if r > maxR {
-			maxR = r
-		}
-		if r < minR {
-			minR = r
-		}
-		if c > maxC {
-			maxC = c
-		}
-		if c < minC {
-			minC = c
 		}
 
 		grid[r][c] = '#'
