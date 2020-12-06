@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 )
 
 const (
@@ -22,51 +23,36 @@ func main() {
 		}
 	}()
 
-	max := 0
-
-	grid := make([][]byte, 0, 128)
-	for i := 0; i < 128; i++ {
-		grid = append(grid, make([]byte, 8))
-	}
+	ids := []int{}
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		r, c := seat([]byte(scanner.Text()))
-		id := r*8 + c
-		if id > max {
-			max = id
-		}
-
-		grid[r][c] = '#'
+		n := calcID([]byte(scanner.Text()))
+		ids = append(ids, n)
 	}
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println("Part 1:", max)
+	sort.Ints(ids)
 
-	for n, i := range grid {
-		fmt.Printf("%4d ", n)
-		for _, j := range i {
-			if j != '#' {
-				fmt.Print(".")
-			} else {
-				fmt.Print("#")
-			}
-		}
-		fmt.Println()
+	if len(ids) == 0 {
+		log.Fatal("No ids")
 	}
 
-	fmt.Println("Part 2:", 69*8+7)
+	fmt.Println("Part 1:", ids[len(ids)-1])
+
+	prev := ids[0] - 1
+	for _, i := range ids {
+		if i-prev > 1 {
+			fmt.Println("Part 2:", i-1)
+			break
+		}
+		prev = i
+	}
 }
 
-func seat(b []byte) (int, int) {
-	r := calcNum(b[:7])
-	c := calcNum(b[7:])
-	return r, c
-}
-
-func calcNum(b []byte) int {
+func calcID(b []byte) int {
 	n := 0
 	for _, i := range b {
 		n *= 2
