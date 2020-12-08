@@ -37,12 +37,13 @@ func main() {
 		if m == nil {
 			log.Fatal("Invalid line format")
 		}
-		m2 := re2.FindAllStringSubmatch(line, -1)
 		m3 := re3.MatchString(line)
-		graph[m[1]] = map[string]int{}
+		subgraph := map[string]int{}
+		graph[m[1]] = subgraph
 		if m3 {
 			continue
 		}
+		m2 := re2.FindAllStringSubmatch(line, -1)
 		if m2 == nil {
 			log.Fatal("Invalid line format")
 		}
@@ -51,7 +52,7 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			graph[m[1]][i[2]] = num
+			subgraph[i[2]] = num
 		}
 	}
 	if err := scanner.Err(); err != nil {
