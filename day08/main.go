@@ -82,6 +82,28 @@ func (m *Machine) Run() (int, error) {
 	}
 }
 
+func parseInstr(line string) (*Instr, error) {
+	fields := strings.Fields(line)
+	if len(fields) != 2 {
+		return nil, fmt.Errorf("Syntax err")
+	}
+	code := CodeNoop
+	switch fields[0] {
+	case "acc":
+		code = CodeAcc
+	case "jmp":
+		code = CodeJmp
+	}
+	arg, err := strconv.Atoi(fields[1])
+	if err != nil {
+		return nil, err
+	}
+	return &Instr{
+		code: code,
+		arg:  arg,
+	}, nil
+}
+
 func main() {
 	file, err := os.Open(puzzleInput)
 	if err != nil {
@@ -97,25 +119,11 @@ func main() {
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		line := strings.Fields(scanner.Text())
-		if len(line) != 2 {
-			log.Fatal("Syntax err")
-		}
-		code := CodeNoop
-		switch line[0] {
-		case "acc":
-			code = CodeAcc
-		case "jmp":
-			code = CodeJmp
-		}
-		arg, err := strconv.Atoi(line[1])
+		instr, err := parseInstr(scanner.Text())
 		if err != nil {
 			log.Fatal(err)
 		}
-		instrs = append(instrs, Instr{
-			code: code,
-			arg:  arg,
-		})
+		instrs = append(instrs, *instr)
 	}
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
