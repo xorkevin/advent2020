@@ -26,19 +26,17 @@ type (
 	}
 
 	Machine struct {
-		instrs    []Instr
-		ip        int
-		acc       int
-		loopLimit int
+		instrs []Instr
+		ip     int
+		acc    int
 	}
 )
 
-func NewMachine(instrs []Instr, loopLimit int) *Machine {
+func NewMachine(instrs []Instr) *Machine {
 	return &Machine{
-		instrs:    instrs,
-		ip:        0,
-		acc:       0,
-		loopLimit: loopLimit,
+		instrs: instrs,
+		ip:     0,
+		acc:    0,
 	}
 }
 
@@ -62,15 +60,15 @@ func (m *Machine) Step() (bool, error) {
 	return false, nil
 }
 
-func (m *Machine) Run() (int, error) {
+func (m *Machine) Run(loopLimit int) (int, error) {
 	runSet := map[int]int{}
 	for {
 		if _, ok := runSet[m.ip]; !ok {
 			runSet[m.ip] = 0
 		}
 		runSet[m.ip]++
-		if runSet[m.ip] > m.loopLimit {
-			return m.acc, fmt.Errorf("Looped over %d", m.loopLimit)
+		if runSet[m.ip] > loopLimit {
+			return m.acc, fmt.Errorf("Looped over %d at %d", loopLimit, m.ip)
 		}
 		term, err := m.Step()
 		if err != nil {
@@ -87,12 +85,16 @@ func parseInstr(line string) (*Instr, error) {
 	if len(fields) != 2 {
 		return nil, fmt.Errorf("Syntax err")
 	}
-	code := CodeNoop
+	var code int
 	switch fields[0] {
+	case "nop":
+		code = CodeNoop
 	case "acc":
 		code = CodeAcc
 	case "jmp":
 		code = CodeJmp
+	default:
+		return nil, fmt.Errorf("Invalid code: %s", fields[0])
 	}
 	arg, err := strconv.Atoi(fields[1])
 	if err != nil {
@@ -129,8 +131,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	m := NewMachine(instrs, 1)
-	part1, _ := m.Run()
+	m := NewMachine(instrs)
+	part1, _ := m.Run(1)
 	fmt.Println("Part 1:", part1)
 
 	for n, i := range instrs {
@@ -149,8 +151,8 @@ func main() {
 				arg:  i.arg,
 			}
 		}
-		m := NewMachine(instrs, 1)
-		part2, err := m.Run()
+		m := NewMachine(instrs)
+		part2, err := m.Run(1)
 		if err == nil {
 			fmt.Println("Part 2:", part2)
 			return
