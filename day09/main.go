@@ -87,15 +87,13 @@ func (r *TargetReader) readLine() (int, error) {
 }
 
 func (r *TargetReader) Scan() (int, error) {
-	preamble := 25
 	b := []int{}
-	for preamble > 0 {
+	for i := 0; i < 25; i++ {
 		k, err := r.readLine()
 		if err != nil {
 			return 0, err
 		}
 		b = append(b, k)
-		preamble--
 	}
 
 	idx := 0
