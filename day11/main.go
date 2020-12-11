@@ -61,8 +61,7 @@ func countSeats(grid [][]byte) int {
 
 func untilStable(mode bool, grid, tmpGrid [][]byte) {
 	for {
-		change := nextGrid(mode, grid, tmpGrid)
-		if !change {
+		if !nextGrid(mode, grid, tmpGrid) {
 			break
 		}
 		tmp := grid
@@ -108,10 +107,6 @@ func nextSeat2(i, j int, grid [][]byte) byte {
 		return 'L'
 	}
 	return c
-}
-
-func inBounds(a, l, r int) bool {
-	return a >= l && a <= r
 }
 
 func seatVal2(i, j int, di, dj int, grid [][]byte) int {
@@ -161,4 +156,8 @@ func seatVal(i, j int, grid [][]byte) int {
 		return 1
 	}
 	return 0
+}
+
+func inBounds(a, l, r int) bool {
+	return a >= l && a <= r
 }
