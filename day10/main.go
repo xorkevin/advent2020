@@ -24,11 +24,11 @@ func main() {
 		}
 	}()
 
-	nums := []int{0}
+	nums := []uint64{0}
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		num, err := strconv.Atoi(scanner.Text())
+		num, err := strconv.ParseUint(scanner.Text(), 10, 64)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -38,9 +38,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	sort.Ints(nums)
-	target := nums[len(nums)-1] + 3
-	nums = append(nums, target)
+	sort.Slice(nums, func(i, j int) bool { return nums[i] < nums[j] })
+	nums = append(nums, nums[len(nums)-1]+3)
 
 	start := nums[0]
 
@@ -56,13 +55,11 @@ func main() {
 		start = i
 	}
 	fmt.Println("Part 1:", diff1*diff3)
-
-	count := countPaths(nums)
-	fmt.Println("Part 2:", count)
+	fmt.Println("Part 2:", countPaths(nums))
 }
 
-func countPaths(nums []int) int {
-	cache := make([]int, len(nums))
+func countPaths(nums []uint64) uint64 {
+	cache := make([]uint64, len(nums))
 	for n, i := range nums {
 		if n == 0 {
 			cache[n] = 1
@@ -76,7 +73,7 @@ func countPaths(nums []int) int {
 	return cache[len(cache)-1]
 }
 
-func getVal(start int, n int, nums []int, cache []int) int {
+func getVal(start uint64, n int, nums []uint64, cache []uint64) uint64 {
 	if n < 0 || n >= len(cache) {
 		return 0
 	}
