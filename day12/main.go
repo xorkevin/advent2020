@@ -158,7 +158,8 @@ func main() {
 
 	re := regexp.MustCompile(`^([A-Z])([0-9]+)$`)
 
-	actions := []Action{}
+	s := NewShip()
+	s2 := NewShip()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -171,24 +172,17 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		actions = append(actions, Action{
+		a := Action{
 			act: act,
 			v:   num,
-		})
+		}
+		s.Step(a)
+		s2.StepWaypoint(a)
 	}
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}
 
-	s := NewShip()
-	for _, i := range actions {
-		s.Step(i)
-	}
-	fmt.Println(abs(s.x) + abs(s.y))
-
-	s2 := NewShip()
-	for _, i := range actions {
-		s2.StepWaypoint(i)
-	}
-	fmt.Println(abs(s2.x) + abs(s2.y))
+	fmt.Println("Part 1:", abs(s.x)+abs(s.y))
+	fmt.Println("Part 2:", abs(s2.x)+abs(s2.y))
 }
