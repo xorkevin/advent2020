@@ -8,24 +8,24 @@ import (
 )
 
 const (
-	puzzleInput  = 1006605
-	puzzleInput2 = "19,x,x,x,x,x,x,x,x,x,x,x,x,37,x,x,x,x,x,883,x,x,x,x,x,x,x,23,x,x,x,x,13,x,x,x,17,x,x,x,x,x,x,x,x,x,x,x,x,x,797,x,x,x,x,x,x,x,x,x,41,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,29"
+	puzzleInput  int64 = 1006605
+	puzzleInput2       = "19,x,x,x,x,x,x,x,x,x,x,x,x,37,x,x,x,x,x,883,x,x,x,x,x,x,x,23,x,x,x,x,13,x,x,x,17,x,x,x,x,x,x,x,x,x,x,x,x,x,797,x,x,x,x,x,x,x,x,x,41,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,29"
 )
 
 func main() {
-	nums := []int{}
-	rem := []int{}
+	nums := []int64{}
+	rem := []int64{}
 
 	for n, i := range strings.Split(puzzleInput2, ",") {
 		if i == "x" {
 			continue
 		}
-		num, err := strconv.Atoi(i)
+		num, err := strconv.ParseInt(i, 10, 64)
 		if err != nil {
 			log.Fatal(err)
 		}
 		nums = append(nums, num)
-		rem = append(rem, num-n)
+		rem = append(rem, num-int64(n))
 	}
 
 	for i := puzzleInput; ; i++ {
@@ -43,15 +43,15 @@ func main() {
 	fmt.Println("Part 2:", x)
 }
 
-func crt(nums, rem []int) (int, error) {
+func crt(nums, rem []int64) (int64, error) {
 	if len(nums) != len(rem) {
 		return 0, fmt.Errorf("Invalid pairs")
 	}
-	p := 1
+	var p int64 = 1
 	for _, i := range nums {
 		p *= i
 	}
-	k := 0
+	var k int64 = 0
 	for i := range nums {
 		n := p / nums[i]
 		t, err := mulInv(n, nums[i])
@@ -65,11 +65,11 @@ func crt(nums, rem []int) (int, error) {
 }
 
 // mulInv returns t, where a*t = 1 (mod n)
-func mulInv(a, n int) (int, error) {
-	t0 := 0
-	t1 := 1
-	r0 := n
-	r1 := a
+func mulInv(a, n int64) (int64, error) {
+	var t0 int64 = 0
+	var t1 int64 = 1
+	var r0 int64 = n
+	var r1 int64 = a
 	for r1 != 0 {
 		q := r0 / r1
 		r0, r1 = r1, r0-q*r1
@@ -84,10 +84,10 @@ func mulInv(a, n int) (int, error) {
 	return t0, nil
 }
 
-func canTake(t int, nums []int) (int, bool) {
-	for _, b := range nums {
-		if t%b == 0 {
-			return b, true
+func canTake(t int64, nums []int64) (int64, bool) {
+	for _, i := range nums {
+		if t%i == 0 {
+			return i, true
 		}
 	}
 	return 0, false
