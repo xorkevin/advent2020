@@ -39,7 +39,7 @@ func main() {
 			log.Fatal("Invalid line")
 		}
 		if s[0] == "mask" {
-			maskZeros, maskOnes, maskFloats, maskPos = processMask([]byte(strings.TrimLeft(s[1], "0")), maskPos[:0])
+			maskZeros, maskOnes, maskFloats, maskPos = processMask([]byte(s[1]), maskPos[:0])
 			continue
 		}
 		addr, err := strconv.Atoi(s[0][4 : len(s[0])-1])
