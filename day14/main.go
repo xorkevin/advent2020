@@ -30,7 +30,7 @@ func main() {
 	maskZeros := 0
 	maskOnes := 0
 	maskFloats := 0
-	var maskPos []int
+	maskPos := []int{}
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -39,7 +39,7 @@ func main() {
 			log.Fatal("Invalid line")
 		}
 		if s[0] == "mask" {
-			maskZeros, maskOnes, maskFloats, maskPos = processMask([]byte(strings.TrimLeft(s[1], "0")))
+			maskZeros, maskOnes, maskFloats, maskPos = processMask([]byte(strings.TrimLeft(s[1], "0")), maskPos[:0])
 			continue
 		}
 		addr, err := strconv.Atoi(s[0][4 : len(s[0])-1])
@@ -53,8 +53,9 @@ func main() {
 
 		mem[addr] = (num & maskZeros) | maskOnes
 
-		for _, i := range maskAddrs(maskPos, (addr&maskFloats)|maskOnes) {
-			mem2[i] = num
+		base := (addr & maskFloats) | maskOnes
+		for _, i := range maskPos {
+			mem2[base|i] = num
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -74,32 +75,31 @@ func main() {
 	fmt.Println("Part 2:", sum2)
 }
 
-func maskAddrs(pos []int, base int) []int {
-	if len(pos) == 0 {
-		return []int{base}
-	}
-	addrs := []int{}
-	addrs = append(addrs, maskAddrs(pos[1:], base)...)
-	addrs = append(addrs, maskAddrs(pos[1:], base|1<<pos[0])...)
-	return addrs
-}
-
-func processMask(b []byte) (int, int, int, []int) {
+func processMask(b []byte, posMask []int) (int, int, int, []int) {
 	pos := []int{}
 	zeros := 0
 	ones := 0
 	fls := 0
 	for n, i := range b {
 		p := len(b) - n - 1
+		k := 1 << p
 		switch i {
 		case '0':
-			zeros |= 1 << p
+			zeros |= k
 		case '1':
-			ones |= 1 << p
+			ones |= k
 		case 'X':
-			fls |= 1 << p
-			pos = append(pos, p)
+			fls |= k
+			pos = append(pos, k)
 		}
 	}
-	return ^zeros, ones, ^fls, pos
+	return ^zeros, ones, ^fls, maskDfs(0, pos, posMask)
+}
+
+func maskDfs(base int, pos []int, posMask []int) []int {
+	if len(pos) == 0 {
+		return append(posMask, base)
+	}
+	posMask = maskDfs(base, pos[1:], posMask)
+	return maskDfs(base|pos[0], pos[1:], posMask)
 }
