@@ -1,6 +1,6 @@
-.PHONY: run bench go run-go build-go rs run-rs build-rs
+.PHONY: run build bench go run-go build-go rs run-rs build-rs
 
-BENCHARGS=-w 3
+BENCHARGS=-w 256
 BENCH=hyperfine
 BIN=$(notdir $(CURDIR))
 
@@ -13,9 +13,10 @@ RSSRC=$(shell find . -type f -name '*.rs')
 run:
 	go run main.go
 
-bench: build-go build-rs
-	$(BENCH) $(BENCHARGS) $(GOBIN)
-	$(BENCH) $(BENCHARGS) $(RSBIN)
+build: build-go build-rs
+
+bench: build
+	$(BENCH) $(BENCHARGS) -L bin $(GOBIN),$(RSBIN) '{bin}'
 
 go: build-go run-go
 
