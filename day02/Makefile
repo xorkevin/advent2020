@@ -1,6 +1,6 @@
 .PHONY: run build bench go run-go build-go rs run-rs build-rs
 
-BENCHARGS=-w 256
+BENCHARGS=-w 64
 BENCH=hyperfine
 BIN=$(notdir $(CURDIR))
 

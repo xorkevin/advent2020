@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export benchargs="-w 256 -s basic -u millisecond"
+export benchargs="-w 64 -s basic -u millisecond"
 
 days=$(find . -maxdepth 1 -type d -name 'day*' -printf '%P,%f\n' | sort)
 
