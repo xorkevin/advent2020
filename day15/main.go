@@ -8,60 +8,31 @@ var (
 	puzzleInput = []int{19, 20, 14, 0, 9, 1}
 )
 
-type (
-	Num struct {
-		cur  int
-		prev int
-	}
-
-	Hist struct {
-		hist map[int]Num
-		idx  int
-	}
-)
-
-func NewHist() *Hist {
-	return &Hist{
-		hist: map[int]Num{},
-		idx:  0,
-	}
-}
-
-func (h *Hist) Say(num int) {
-	h.idx++
-	if v, ok := h.hist[num]; ok {
-		h.hist[num] = Num{
-			cur:  h.idx,
-			prev: v.cur,
-		}
-	} else {
-		h.hist[num] = Num{
-			cur:  h.idx,
-			prev: 0,
-		}
-	}
-}
-
-func (h *Hist) Diff(num int) int {
-	if v, ok := h.hist[num]; ok && v.prev != 0 {
-		return v.cur - v.prev
-	}
-	return 0
-}
-
 func main() {
-	hist := NewHist()
-	var prev int
-	for _, i := range puzzleInput {
-		prev = i
-		hist.Say(prev)
+	hist := make([]int, 30_000_000)
+	for n, i := range puzzleInput[:len(puzzleInput)-1] {
+		hist[i] = n + 1
 	}
-	for hist.idx < 30000000 {
-		prev = hist.Diff(prev)
-		hist.Say(prev)
-		if hist.idx == 2020 {
-			fmt.Println("Part 1:", prev)
+	idx := len(puzzleInput)
+	prev := puzzleInput[len(puzzleInput)-1]
+	for idx < 2020 {
+		v := hist[prev]
+		hist[prev] = idx
+		prev = 0
+		if v != 0 {
+			prev = idx - v
 		}
+		idx++
+	}
+	fmt.Println("Part 1:", prev)
+	for idx < 30_000_000 {
+		v := hist[prev]
+		hist[prev] = idx
+		prev = 0
+		if v != 0 {
+			prev = idx - v
+		}
+		idx++
 	}
 	fmt.Println("Part 2:", prev)
 }
