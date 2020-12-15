@@ -4,11 +4,8 @@ import (
 	"fmt"
 )
 
-var (
-	puzzleInput = []int{19, 20, 14, 0, 9, 1}
-)
-
 func main() {
+	puzzleInput := []int{19, 20, 14, 0, 9, 1}
 	hist := make([]int, 30_000_000)
 	for n, i := range puzzleInput[:len(puzzleInput)-1] {
 		hist[i] = n + 1
@@ -18,8 +15,9 @@ func main() {
 	for idx < 2020 {
 		v := hist[prev]
 		hist[prev] = idx
-		prev = 0
-		if v != 0 {
+		if v == 0 {
+			prev = 0
+		} else {
 			prev = idx - v
 		}
 		idx++
@@ -28,8 +26,9 @@ func main() {
 	for idx < 30_000_000 {
 		v := hist[prev]
 		hist[prev] = idx
-		prev = 0
-		if v != 0 {
+		if v == 0 {
+			prev = 0
+		} else {
 			prev = idx - v
 		}
 		idx++
