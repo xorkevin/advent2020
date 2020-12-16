@@ -142,6 +142,9 @@ func main() {
 		for {
 			changed := false
 			for n, i := range possible {
+				if len(i) < 0 {
+					continue
+				}
 				for _, j := range otherTickets {
 					rm := []string{}
 					for k := range i {
