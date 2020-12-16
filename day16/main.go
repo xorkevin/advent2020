@@ -16,11 +16,10 @@ const (
 
 type (
 	Rule struct {
-		text string
-		num1 int
-		num2 int
-		num3 int
-		num4 int
+		n1 int
+		n2 int
+		n3 int
+		n4 int
 	}
 )
 
@@ -51,28 +50,27 @@ func main() {
 			log.Fatal("Invalid rule line")
 		}
 		text := m[1]
-		num1, err := strconv.Atoi(m[2])
+		n1, err := strconv.Atoi(m[2])
 		if err != nil {
 			log.Fatal(err)
 		}
-		num2, err := strconv.Atoi(m[3])
+		n2, err := strconv.Atoi(m[3])
 		if err != nil {
 			log.Fatal(err)
 		}
-		num3, err := strconv.Atoi(m[4])
+		n3, err := strconv.Atoi(m[4])
 		if err != nil {
 			log.Fatal(err)
 		}
-		num4, err := strconv.Atoi(m[5])
+		n4, err := strconv.Atoi(m[5])
 		if err != nil {
 			log.Fatal(err)
 		}
 		rules[text] = Rule{
-			text: text,
-			num1: num1,
-			num2: num2,
-			num3: num3,
-			num4: num4,
+			n1: n1,
+			n2: n2,
+			n3: n3,
+			n4: n4,
 		}
 		ruleNames[text] = struct{}{}
 	}
@@ -104,7 +102,7 @@ func main() {
 
 	otherTickets := [][]int{}
 
-	countInvalid := 0
+	part1 := 0
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -120,7 +118,7 @@ func main() {
 			ticket = append(ticket, num)
 		}
 		if i, ok := isInvalid(ticket, rules); ok {
-			countInvalid += i
+			part1 += i
 		} else {
 			otherTickets = append(otherTickets, ticket)
 		}
@@ -129,7 +127,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println("Part 1:", countInvalid)
+	fmt.Println("Part 1:", part1)
 
 	possible := make([]map[string]struct{}, 0, len(ownTicket))
 	for i := 0; i < len(ownTicket); i++ {
@@ -142,7 +140,7 @@ func main() {
 		for {
 			changed := false
 			for n, i := range possible {
-				if len(i) < 0 {
+				if len(i) < 2 {
 					continue
 				}
 				for _, j := range otherTickets {
@@ -204,12 +202,12 @@ outer:
 	return 0, false
 }
 
-func notInRange(i int, rule Rule) bool {
-	return i < rule.num1 || i > rule.num4 || (i > rule.num2 && i < rule.num3)
+func inRange(i int, r Rule) bool {
+	return i >= r.n1 && i <= r.n4 && (i <= r.n2 || i >= r.n3)
 }
 
-func inRange(i int, rule Rule) bool {
-	return i >= rule.num1 && i <= rule.num4 && (i <= rule.num2 || i >= rule.num3)
+func notInRange(i int, r Rule) bool {
+	return i < r.n1 || i > r.n4 || (i > r.n2 && i < r.n3)
 }
 
 func copyMap(m map[string]struct{}) map[string]struct{} {
@@ -220,6 +218,6 @@ func copyMap(m map[string]struct{}) map[string]struct{} {
 	return other
 }
 
-func startsWith(s, prefix string) bool {
-	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+func startsWith(s, p string) bool {
+	return len(s) >= len(p) && s[:len(p)] == p
 }
