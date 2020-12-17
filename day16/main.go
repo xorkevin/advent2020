@@ -136,30 +136,31 @@ func main() {
 
 	determined := map[string]int{}
 
-	for len(determined) < len(ownTicket) {
-		for {
-			changed := false
-			for n, i := range possible {
-				if len(i) < 2 {
-					continue
-				}
-				for _, j := range otherTickets {
-					rm := []string{}
-					for k := range i {
-						if notInRange(j[n], rules[k]) {
-							rm = append(rm, k)
-						}
-					}
-					for _, r := range rm {
-						delete(i, r)
-						changed = true
-					}
-				}
+	for {
+		changed := false
+		for n, i := range possible {
+			if len(i) < 2 {
+				continue
 			}
-			if !changed {
-				break
+			for _, j := range otherTickets {
+				rm := []string{}
+				for k := range i {
+					if notInRange(j[n], rules[k]) {
+						rm = append(rm, k)
+					}
+				}
+				for _, r := range rm {
+					delete(i, r)
+					changed = true
+				}
 			}
 		}
+		if !changed {
+			break
+		}
+	}
+	for {
+		changed := false
 		for n, i := range possible {
 			if len(i) == 0 {
 				log.Fatal("Invalid constraints")
@@ -175,9 +176,18 @@ func main() {
 				if n == v {
 					continue
 				}
-				delete(i, k)
+				if _, ok := i[k]; ok {
+					delete(i, k)
+					changed = true
+				}
 			}
 		}
+		if !changed {
+			break
+		}
+	}
+	if len(determined) < len(ownTicket) {
+		log.Fatal("Invalid constraints")
 	}
 
 	part2 := 1

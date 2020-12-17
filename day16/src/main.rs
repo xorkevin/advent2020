@@ -82,33 +82,34 @@ fn main() -> Result<(), BErr> {
         .map(|_| rule_names.clone())
         .collect::<Vec<_>>();
     let mut determined: HashMap<String, usize> = HashMap::new();
-    while determined.len() < own_ticket.len() {
-        loop {
-            let mut changed = false;
-            possible = possible
-                .into_iter()
-                .enumerate()
-                .map(|(n, mut i)| {
-                    if i.len() < 2 {
-                        return i;
+    loop {
+        let mut changed = false;
+        possible = possible
+            .into_iter()
+            .enumerate()
+            .map(|(n, mut i)| {
+                if i.len() < 2 {
+                    return i;
+                }
+                for j in &other_tickets {
+                    let l = i.len();
+                    i = i
+                        .into_iter()
+                        .filter(|k| in_range(j[n], &rules[k]))
+                        .collect::<HashSet<_>>();
+                    if i.len() != l {
+                        changed = true;
                     }
-                    for j in &other_tickets {
-                        let l = i.len();
-                        i = i
-                            .into_iter()
-                            .filter(|k| in_range(j[n], &rules[k]))
-                            .collect::<HashSet<_>>();
-                        if i.len() != l {
-                            changed = true;
-                        }
-                    }
-                    i
-                })
-                .collect();
-            if !changed {
-                break;
-            }
+                }
+                i
+            })
+            .collect();
+        if !changed {
+            break;
         }
+    }
+    loop {
+        let mut changed = false;
         for (n, i) in possible.iter().enumerate() {
             if i.len() == 0 {
                 return Err("Invalid constraints".into());
@@ -127,10 +128,15 @@ fn main() -> Result<(), BErr> {
                     if n == v {
                         return i;
                     }
-                    i.remove(k);
+                    if i.remove(k) {
+                        changed = true;
+                    }
                     i
                 })
                 .collect();
+        }
+        if !changed {
+            break;
         }
     }
 
