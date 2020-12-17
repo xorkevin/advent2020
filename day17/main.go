@@ -33,8 +33,8 @@ func main() {
 
 	scanner := bufio.NewScanner(file)
 	for i := 0; scanner.Scan(); i++ {
-		for j, k := range []byte(scanner.Text()) {
-			if k == '#' {
+		for j, c := range []byte(scanner.Text()) {
+			if c == '#' {
 				active[Point{j, i, 0, 0}] = struct{}{}
 				active2[Point{j, i, 0, 0}] = struct{}{}
 			}
@@ -47,11 +47,11 @@ func main() {
 	for i := 0; i < 6; i++ {
 		active = step(active, false)
 	}
-	fmt.Println(len(active))
+	fmt.Println("Part 1:", len(active))
 	for i := 0; i < 6; i++ {
 		active2 = step(active2, true)
 	}
-	fmt.Println(len(active2))
+	fmt.Println("Part 2:", len(active2))
 }
 
 func step(active map[Point]struct{}, dim4 bool) map[Point]struct{} {
@@ -98,11 +98,10 @@ func neighbors(p Point) []Point {
 	for i := p.x - 1; i <= p.x+1; i++ {
 		for j := p.y - 1; j <= p.y+1; j++ {
 			for k := p.z - 1; k <= p.z+1; k++ {
-				l := Point{i, j, k, 0}
-				if l == p {
-					continue
+				x := Point{i, j, k, 0}
+				if x != p {
+					n = append(n, x)
 				}
-				n = append(n, l)
 			}
 		}
 	}
