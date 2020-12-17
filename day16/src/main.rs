@@ -81,29 +81,21 @@ fn main() -> Result<(), BErr> {
     let mut possible = (0..own_ticket.len())
         .map(|_| rule_names.clone())
         .collect::<Vec<_>>();
-    let mut determined: HashMap<String, usize> = HashMap::new();
+    let mut determined = HashMap::new();
     loop {
         let mut changed = false;
-        possible = possible
-            .into_iter()
-            .enumerate()
-            .map(|(n, mut i)| {
-                if i.len() < 2 {
-                    return i;
+        for (n, i) in possible.iter_mut().enumerate() {
+            if i.len() < 2 {
+                continue;
+            }
+            for j in &other_tickets {
+                let l = i.len();
+                i.retain(|k| in_range(j[n], &rules[k]));
+                if i.len() != l {
+                    changed = true;
                 }
-                for j in &other_tickets {
-                    let l = i.len();
-                    i = i
-                        .into_iter()
-                        .filter(|k| in_range(j[n], &rules[k]))
-                        .collect::<HashSet<_>>();
-                    if i.len() != l {
-                        changed = true;
-                    }
-                }
-                i
-            })
-            .collect();
+            }
+        }
         if !changed {
             break;
         }
@@ -121,19 +113,14 @@ fn main() -> Result<(), BErr> {
             }
         }
         for (k, &v) in &determined {
-            possible = possible
-                .into_iter()
-                .enumerate()
-                .map(|(n, mut i)| {
-                    if n == v {
-                        return i;
-                    }
-                    if i.remove(k) {
-                        changed = true;
-                    }
-                    i
-                })
-                .collect();
+            for (n, i) in possible.iter_mut().enumerate() {
+                if n == v {
+                    continue;
+                }
+                if i.remove(k) {
+                    changed = true;
+                }
+            }
         }
         if !changed {
             break;
