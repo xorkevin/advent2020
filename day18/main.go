@@ -88,10 +88,6 @@ type (
 		ignored map[int]struct{}
 	}
 
-	TokenStack struct {
-		tokens []Token
-	}
-
 	Token struct {
 		kind int
 		val  string
@@ -111,29 +107,6 @@ func (t *Token) Kind() int {
 
 func (t *Token) Val() string {
 	return t.val
-}
-
-func NewTokenStack() *TokenStack {
-	return &TokenStack{
-		tokens: []Token{},
-	}
-}
-
-func (s *TokenStack) Empty() bool {
-	return len(s.tokens) == 0
-}
-
-func (s *TokenStack) Push(t Token) {
-	s.tokens = append(s.tokens, t)
-}
-
-func (s *TokenStack) Pop() (*Token, bool) {
-	if s.Empty() {
-		return nil, false
-	}
-	k := s.tokens[len(s.tokens)-1]
-	s.tokens = s.tokens[:len(s.tokens)-1]
-	return &k, true
 }
 
 func NewLexer(dfa *Dfa, def, eof int, ignored map[int]struct{}) *Lexer {
@@ -189,6 +162,61 @@ func (l *Lexer) Tokenize(chars []byte) ([]Token, error) {
 			return tokens, nil
 		}
 	}
+}
+
+type (
+	Parser struct {
+		table map[int]map[int][]GrammarSym
+	}
+
+	GrammarSym struct {
+		term bool
+		kind int
+	}
+
+	GrammarRule struct {
+		from int
+		to   []GrammarSym
+	}
+)
+
+func NewGrammarTerm(kind int) GrammarSym {
+	return GrammarSym{
+		term: true,
+		kind: kind,
+	}
+}
+
+func NewGrammarNonTerm(kind int) GrammarSym {
+	return GrammarSym{
+		term: false,
+		kind: kind,
+	}
+}
+
+func NewGrammarRule(from int, to []GrammarSym) *GrammarRule {
+	return &GrammarRule{
+		from: from,
+		to:   to,
+	}
+}
+
+var (
+	ErrGrammar = errors.New("grammar error")
+)
+
+func NewParser(rules []GrammarRule, epsilon int) (*Parser, error) {
+	for n, i := range rules {
+		if len(i.to) == 0 {
+			return nil, fmt.Errorf("Invalid grammar rule: %d: %w", n+1, ErrGrammar)
+		}
+	}
+	nonTerms := map[int]struct{}{}
+	for _, i := range rules {
+		nonTerms[i.from] = struct{}{}
+	}
+	_ = map[int]map[int]struct{}{}
+	return &Parser{}, nil
 }
 
 const (
