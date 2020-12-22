@@ -6,10 +6,22 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"xorkevin.dev/gnom"
 )
 
 const (
 	puzzleInput = "input.txt"
+)
+
+const (
+	tokenKindDefault = iota
+	tokenKindEOF
+	tokenKindWspace
+	tokenKindNum
+	tokenKindLparen
+	tokenKindRparen
+	tokenKindPlus
+	tokenKindStar
 )
 
 func main() {
@@ -23,31 +35,48 @@ func main() {
 		}
 	}()
 
+	dfa := gnom.NewDfa(tokenKindDefault)
+	dfaWspace := gnom.NewDfa(tokenKindWspace)
+	dfa.AddDfa([]rune(" "), dfaWspace)
+	dfaWspace.AddDfa([]rune(" "), dfaWspace)
+	dfaNum := gnom.NewDfa(tokenKindNum)
+	dfa.AddDfa([]rune("0123456789"), dfaNum)
+	dfaNum.AddDfa([]rune("0123456789"), dfaNum)
+	dfa.AddPath([]rune("("), tokenKindLparen, tokenKindDefault)
+	dfa.AddPath([]rune(")"), tokenKindRparen, tokenKindDefault)
+	dfa.AddPath([]rune("+"), tokenKindPlus, tokenKindDefault)
+	dfa.AddPath([]rune("*"), tokenKindStar, tokenKindDefault)
+	lexer := gnom.NewDfaLexer(dfa, tokenKindDefault, tokenKindEOF, map[int]struct{}{
+		tokenKindWspace: {},
+	})
+
 	sum := 0
 	sum2 := 0
-
 	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		tokens, err := tokenize([]byte(scanner.Text()))
+	for n := 1; scanner.Scan(); n++ {
+		tokens, err := lexer.Tokenize([]rune(scanner.Text()))
 		if err != nil {
 			log.Fatal(err)
 		}
-		tree, t, err := parseExpr(tokens)
+		tokens = tokens[:len(tokens)-1]
+		t1, err := parseExpr(tokens)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("parse 1 ", n, err)
 		}
-		if len(t) != 0 {
-			log.Fatal("Remaining tokens")
-		}
-		sum += tree.Eval()
-		tree2, t, err := parseExpr2(tokens)
+		v1, err := NewRPNStack().Eval(t1)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("eval 1 ", n, err)
 		}
-		if len(t) != 0 {
-			log.Fatal("Remaining tokens")
+		sum += v1
+		t2, err := parseExpr2(tokens)
+		if err != nil {
+			log.Fatal("parse 2 ", n, err)
 		}
-		sum2 += tree2.Eval()
+		v2, err := NewRPNStack().Eval(t2)
+		if err != nil {
+			log.Fatal("eval 2 ", n, err)
+		}
+		sum2 += v2
 	}
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
@@ -57,311 +86,193 @@ func main() {
 	fmt.Println("Part 2:", sum2)
 }
 
-const (
-	OpAdd = iota
-	OpMul
-)
+func parseExpr(tokens []gnom.Token) ([]gnom.Token, error) {
+	return NewShuntingYard(map[int]int{
+		tokenKindStar: 1,
+		tokenKindPlus: 1,
+	}, map[int]int{
+		tokenKindLparen: tokenKindRparen,
+	}).RPN(tokens)
+}
 
-const (
-	TokenAdd = iota
-	TokenMul
-	TokenOpenParen
-	TokenCloseParen
-	TokenNum
-)
+func parseExpr2(tokens []gnom.Token) ([]gnom.Token, error) {
+	return NewShuntingYard(map[int]int{
+		tokenKindStar: 2,
+		tokenKindPlus: 1,
+	}, map[int]int{
+		tokenKindLparen: tokenKindRparen,
+	}).RPN(tokens)
+}
 
 type (
-	Expr interface {
-		Eval() int
-	}
-
-	Val struct {
-		v int
-	}
-
-	Node struct {
-		op   int
-		arg1 Expr
-		arg2 Expr
-	}
-
-	Token1 struct {
-		kind int
-		num  int
+	RPNStack struct {
+		stack []int
 	}
 )
 
-func (v *Val) Eval() int {
-	return v.v
-}
-
-func (n *Node) Eval() int {
-	v1 := n.arg1.Eval()
-	v2 := n.arg2.Eval()
-	switch n.op {
-	case OpAdd:
-		return v1 + v2
-	case OpMul:
-		return v1 * v2
-	default:
-		log.Fatal("Invalid tree")
-		return 0
+func NewRPNStack() *RPNStack {
+	return &RPNStack{
+		stack: []int{},
 	}
 }
 
-func TokenKindToString(kind int) string {
-	switch kind {
-	case TokenAdd:
-		return "+"
-	case TokenMul:
-		return "*"
-	case TokenOpenParen:
-		return "("
-	case TokenCloseParen:
-		return ")"
-	default:
-		return ""
-	}
+func (s *RPNStack) Push(k int) {
+	s.stack = append(s.stack, k)
 }
 
-func (t Token1) String() string {
-	if t.kind == TokenNum {
-		return strconv.Itoa(t.num)
+func (s *RPNStack) Pop() (int, error) {
+	if len(s.stack) == 0 {
+		return 0, fmt.Errorf("No elements on the stack")
 	}
-	return TokenKindToString(t.kind)
+	k := s.stack[len(s.stack)-1]
+	s.stack = s.stack[:len(s.stack)-1]
+	return k, nil
 }
 
-const (
-	LexStateRoot = iota
-	LexStateNum
-)
-
-func tokenize(line []byte) ([]Token1, error) {
-	tokens := []Token1{}
-	state := LexStateRoot
-	buf := []byte{}
-	for len(line) > 0 {
-		i := line[0]
-		switch state {
-		case LexStateRoot:
-			if i >= '0' && i <= '9' {
-				state = LexStateNum
-			} else {
-				switch i {
-				case '+':
-					tokens = append(tokens, Token1{
-						kind: TokenAdd,
-					})
-				case '*':
-					tokens = append(tokens, Token1{
-						kind: TokenMul,
-					})
-				case '(':
-					tokens = append(tokens, Token1{
-						kind: TokenOpenParen,
-					})
-				case ')':
-					tokens = append(tokens, Token1{
-						kind: TokenCloseParen,
-					})
-				case ' ':
-				default:
-					return nil, fmt.Errorf("Invalid character")
-				}
-				line = line[1:]
+func (s *RPNStack) Eval(tokens []gnom.Token) (int, error) {
+	for _, i := range tokens {
+		if i.Kind() == tokenKindNum {
+			num, err := strconv.Atoi(i.Val())
+			if err != nil {
+				return 0, err
 			}
-		case LexStateNum:
-			if i >= '0' && i <= '9' {
-				buf = append(buf, i)
-				line = line[1:]
-			} else {
-				num, err := strconv.Atoi(string(buf))
-				if err != nil {
-					return nil, err
-				}
-				tokens = append(tokens, Token1{
-					kind: TokenNum,
-					num:  num,
-				})
-				buf = []byte{}
-				state = LexStateRoot
-			}
+			s.Push(num)
+			continue
+		}
+		v2, err := s.Pop()
+		if err != nil {
+			return 0, err
+		}
+		v1, err := s.Pop()
+		if err != nil {
+			return 0, err
+		}
+		switch i.Kind() {
+		case tokenKindPlus:
+			s.Push(v1 + v2)
+		case tokenKindStar:
+			s.Push(v1 * v2)
+		default:
+			return 0, fmt.Errorf("Invalid op")
 		}
 	}
-	if len(buf) > 0 {
-		num, err := strconv.Atoi(string(buf))
-		if err != nil {
+	k, err := s.Pop()
+	if err != nil {
+		return 0, err
+	}
+	if len(s.stack) != 0 {
+		return 0, fmt.Errorf("Elements left on the stack")
+	}
+	return k, nil
+}
+
+type (
+	ShuntingYard struct {
+		precedence map[int]int
+		pair       map[int]int
+		pairOpen   map[int]struct{}
+		out        []gnom.Token
+		ops        []gnom.Token
+		max        int
+	}
+)
+
+func NewShuntingYard(precedence map[int]int, pair map[int]int) *ShuntingYard {
+	max := 0
+	for _, v := range precedence {
+		if v > max {
+			max = v + 1
+		}
+	}
+	rpair := map[int]int{}
+	pairOpen := map[int]struct{}{}
+	for k, v := range pair {
+		rpair[v] = k
+		pairOpen[k] = struct{}{}
+	}
+	return &ShuntingYard{
+		precedence: precedence,
+		pair:       rpair,
+		pairOpen:   pairOpen,
+		out:        []gnom.Token{},
+		ops:        []gnom.Token{},
+		max:        max,
+	}
+}
+
+func (s *ShuntingYard) Out() []gnom.Token {
+	return s.out
+}
+
+func (s *ShuntingYard) Peek() (gnom.Token, bool) {
+	if len(s.ops) == 0 {
+		return gnom.Token{}, false
+	}
+	return s.ops[len(s.ops)-1], true
+}
+
+func (s *ShuntingYard) Pop() {
+	if len(s.ops) == 0 {
+		return
+	}
+	k := s.ops[len(s.ops)-1]
+	s.ops = s.ops[:len(s.ops)-1]
+	s.out = append(s.out, k)
+}
+
+func (s *ShuntingYard) PopUntil(p int) {
+	for {
+		top, ok := s.Peek()
+		if !ok {
+			return
+		}
+		if v, ok := s.precedence[top.Kind()]; !ok || v > p {
+			return
+		}
+		s.Pop()
+	}
+}
+
+func (s *ShuntingYard) Find(k int) error {
+	for {
+		top, ok := s.Peek()
+		if !ok {
+			return fmt.Errorf("No matching pair")
+		}
+		if top.Kind() == k {
+			return nil
+		}
+		s.Pop()
+	}
+}
+
+func (s *ShuntingYard) Push(token gnom.Token) error {
+	if _, ok := s.pairOpen[token.Kind()]; ok {
+		s.ops = append(s.ops, token)
+		return nil
+	}
+	if t, ok := s.pair[token.Kind()]; ok {
+		if err := s.Find(t); err != nil {
+			return err
+		}
+		s.ops = s.ops[:len(s.ops)-1]
+		return nil
+	}
+	if p, ok := s.precedence[token.Kind()]; ok {
+		s.PopUntil(p)
+		s.ops = append(s.ops, token)
+		return nil
+	}
+	s.out = append(s.out, token)
+	return nil
+}
+
+func (s *ShuntingYard) RPN(tokens []gnom.Token) ([]gnom.Token, error) {
+	for _, i := range tokens {
+		if err := s.Push(i); err != nil {
 			return nil, err
 		}
-		tokens = append(tokens, Token1{
-			kind: TokenNum,
-			num:  num,
-		})
-		buf = []byte{}
-		state = LexStateRoot
 	}
-	return tokens, nil
-}
-
-func parseParen(tokens []Token1) (Expr, []Token1, error) {
-	val, tokens, err := parseExpr(tokens)
-	if err != nil {
-		return nil, nil, err
-	}
-	if len(tokens) == 0 {
-		return nil, nil, fmt.Errorf("EOF")
-	}
-	i := tokens[0]
-	tokens = tokens[1:]
-	if i.kind != TokenCloseParen {
-		return nil, nil, fmt.Errorf("No close paren")
-	}
-	return val, tokens, nil
-}
-
-func parseVal(tokens []Token1) (Expr, []Token1, error) {
-	if len(tokens) == 0 {
-		return nil, nil, fmt.Errorf("EOF")
-	}
-	i := tokens[0]
-	tokens = tokens[1:]
-	switch i.kind {
-	case TokenNum:
-		return &Val{
-			v: i.num,
-		}, tokens, nil
-	case TokenOpenParen:
-		return parseParen(tokens)
-	default:
-		return nil, nil, fmt.Errorf("Invalid token")
-	}
-}
-
-func parseExpr(tokens []Token1) (Expr, []Token1, error) {
-	val, tokens, err := parseVal(tokens)
-	if err != nil {
-		return nil, nil, err
-	}
-	for len(tokens) != 0 {
-		i := tokens[0]
-		var op int
-		switch i.kind {
-		case TokenAdd:
-			op = OpAdd
-		case TokenMul:
-			op = OpMul
-		case TokenCloseParen:
-			return val, tokens, nil
-		default:
-			return nil, nil, fmt.Errorf("Invalid token")
-		}
-		tokens = tokens[1:]
-		var arg2 Expr
-		arg2, tokens, err = parseVal(tokens)
-		if err != nil {
-			return nil, nil, err
-		}
-		val = &Node{
-			op:   op,
-			arg1: val,
-			arg2: arg2,
-		}
-	}
-	return val, tokens, nil
-}
-
-func parseParen2(tokens []Token1) (Expr, []Token1, error) {
-	val, tokens, err := parseExpr2(tokens)
-	if err != nil {
-		return nil, nil, err
-	}
-	if len(tokens) == 0 {
-		return nil, nil, fmt.Errorf("EOF")
-	}
-	i := tokens[0]
-	tokens = tokens[1:]
-	if i.kind != TokenCloseParen {
-		return nil, nil, fmt.Errorf("No close paren")
-	}
-	return val, tokens, nil
-}
-
-func parseVal2(tokens []Token1) (Expr, []Token1, error) {
-	if len(tokens) == 0 {
-		return nil, nil, fmt.Errorf("EOF")
-	}
-	i := tokens[0]
-	tokens = tokens[1:]
-	switch i.kind {
-	case TokenNum:
-		return &Val{
-			v: i.num,
-		}, tokens, nil
-	case TokenOpenParen:
-		return parseParen2(tokens)
-	default:
-		return nil, nil, fmt.Errorf("Invalid token")
-	}
-}
-
-func parseAddExpr2(tokens []Token1) (Expr, []Token1, error) {
-	val, tokens, err := parseVal2(tokens)
-	if err != nil {
-		return nil, nil, err
-	}
-	for len(tokens) != 0 {
-		i := tokens[0]
-		var op int
-		switch i.kind {
-		case TokenAdd:
-			op = OpAdd
-		case TokenMul, TokenCloseParen:
-			return val, tokens, nil
-		default:
-			return nil, nil, fmt.Errorf("Invalid token")
-		}
-		tokens = tokens[1:]
-		var arg2 Expr
-		arg2, tokens, err = parseVal2(tokens)
-		if err != nil {
-			return nil, nil, err
-		}
-		val = &Node{
-			op:   op,
-			arg1: val,
-			arg2: arg2,
-		}
-	}
-	return val, tokens, nil
-}
-
-func parseExpr2(tokens []Token1) (Expr, []Token1, error) {
-	val, tokens, err := parseAddExpr2(tokens)
-	if err != nil {
-		return nil, nil, err
-	}
-	for len(tokens) != 0 {
-		i := tokens[0]
-		var op int
-		switch i.kind {
-		case TokenMul:
-			op = OpMul
-		case TokenCloseParen:
-			return val, tokens, nil
-		default:
-			return nil, nil, fmt.Errorf("Invalid token")
-		}
-		tokens = tokens[1:]
-		var arg2 Expr
-		arg2, tokens, err = parseAddExpr2(tokens)
-		if err != nil {
-			return nil, nil, err
-		}
-		val = &Node{
-			op:   op,
-			arg1: val,
-			arg2: arg2,
-		}
-	}
-	return val, tokens, nil
+	s.PopUntil(s.max)
+	return s.Out(), nil
 }
