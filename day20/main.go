@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -85,6 +86,25 @@ func getEdge(tile Tile, tr Transform, side int) int {
 	return e.f
 }
 
+func getEdgeReverse(tile Tile, tr Transform, side int) int {
+	angle := (((side - tr.rotation) % 4) + 4) % 4
+	var e Edge
+	switch angle {
+	case 0:
+		e = tile.r
+	case 1:
+		e = tile.b
+	case 2:
+		e = tile.l
+	case 3:
+		e = tile.t
+	}
+	if tr.flip {
+		return e.f
+	}
+	return e.b
+}
+
 type (
 	TrTile struct {
 		tile Tile
@@ -96,11 +116,16 @@ func (t TrTile) Edge(side int) int {
 	return getEdge(t.tile, t.tr, side)
 }
 
+func (t TrTile) EdgeReverse(side int) int {
+	return getEdgeReverse(t.tile, t.tr, side)
+}
+
 type (
 	TileIter struct {
-		idx   int
-		trIdx int
-		tiles []Tile
+		idx     int
+		trIdx   int
+		tiles   []Tile
+		current TrTile
 	}
 )
 
@@ -112,43 +137,64 @@ func NewTileIter(tiles []Tile) *TileIter {
 	}
 }
 
-func (t *TileIter) Next() (TrTile, bool) {
+func (t *TileIter) Next() bool {
 	if t.trIdx >= len(allTransforms) {
 		t.trIdx = 0
 		t.idx++
 	}
 	if t.idx >= len(t.tiles) {
-		return TrTile{}, false
+		return false
 	}
-	k := TrTile{
+	t.current = TrTile{
 		tile: t.tiles[t.idx],
 		tr:   allTransforms[t.trIdx],
 	}
 	t.trIdx++
-	return k, true
+	return true
+}
+
+func (t *TileIter) Get() TrTile {
+	return t.current
 }
 
 type (
+	Tuple2 struct {
+		a, b int
+	}
+
 	ValidPeers struct {
-		peers []map[int][]TrTile
+		right     map[int][]TrTile
+		down      map[int][]TrTile
+		rightDown map[Tuple2][]TrTile
 	}
 )
 
 func NewValidPeers() *ValidPeers {
-	peers := make([]map[int][]TrTile, 0, 4)
-	for i := 0; i < 4; i++ {
-		peers = append(peers, map[int][]TrTile{})
-	}
 	return &ValidPeers{
-		peers: peers,
+		right:     map[int][]TrTile{},
+		down:      map[int][]TrTile{},
+		rightDown: map[Tuple2][]TrTile{},
 	}
 }
 
-func (p *ValidPeers) Get(i int, id int) []TrTile {
-	if i >= len(p.peers) {
+func (p *ValidPeers) GetRight(id int) []TrTile {
+	k, ok := p.right[id]
+	if !ok {
 		return []TrTile{}
 	}
-	k, ok := p.peers[i][id]
+	return k
+}
+
+func (p *ValidPeers) GetDown(id int) []TrTile {
+	k, ok := p.down[id]
+	if !ok {
+		return []TrTile{}
+	}
+	return k
+}
+
+func (p *ValidPeers) GetRightDown(r, d int) []TrTile {
+	k, ok := p.rightDown[Tuple2{a: r, b: d}]
 	if !ok {
 		return []TrTile{}
 	}
@@ -156,13 +202,21 @@ func (p *ValidPeers) Get(i int, id int) []TrTile {
 }
 
 func (p *ValidPeers) AddTrTile(t TrTile) {
-	for i := 0; i < 4; i++ {
-		e := t.Edge((i + 2) % 4)
-		if _, ok := p.peers[i][e]; !ok {
-			p.peers[i][e] = []TrTile{}
-		}
-		p.peers[i][e] = append(p.peers[i][e], t)
+	r := t.Edge(2)
+	d := t.Edge(1)
+	rd := Tuple2{a: r, b: d}
+	if _, ok := p.right[r]; !ok {
+		p.right[r] = []TrTile{}
 	}
+	p.right[r] = append(p.right[r], t)
+	if _, ok := p.down[d]; !ok {
+		p.down[d] = []TrTile{}
+	}
+	p.down[d] = append(p.down[d], t)
+	if _, ok := p.rightDown[rd]; !ok {
+		p.rightDown[rd] = []TrTile{}
+	}
+	p.rightDown[rd] = append(p.rightDown[rd], t)
 }
 
 type (
@@ -214,16 +268,17 @@ func NewGrid(dimx, dimy int) *Grid {
 	}
 }
 
-func (g *Grid) SetTopLeft(t TrTile) {
+func (g *Grid) SetTopLeft(t TrTile, pool *TilePool, peers *ValidPeers) bool {
 	g.grid[0][0] = t
+	return g.SetTop(1, pool, peers)
 }
 
 func (g *Grid) SetTop(idx int, pool *TilePool, peers *ValidPeers) bool {
 	if idx >= g.dimx {
-		return true
+		return g.SetLeft(1, pool, peers)
 	}
-	e := g.grid[0][idx-1].Edge(0)
-	for _, i := range peers.Get(0, e) {
+	e := g.grid[0][idx-1].EdgeReverse(0)
+	for _, i := range peers.GetRight(e) {
 		if !pool.Has(i.tile.id) {
 			continue
 		}
@@ -238,6 +293,97 @@ func (g *Grid) SetTop(idx int, pool *TilePool, peers *ValidPeers) bool {
 	return false
 }
 
+func (g *Grid) SetLeft(idx int, pool *TilePool, peers *ValidPeers) bool {
+	if idx >= g.dimy {
+		return g.SetCenter(1, 1, pool, peers)
+	}
+	e := g.grid[idx-1][0].EdgeReverse(3)
+	for _, i := range peers.GetDown(e) {
+		if !pool.Has(i.tile.id) {
+			continue
+		}
+		g.grid[idx][0] = i
+		pool.Pop(i.tile.id)
+		if g.SetLeft(idx+1, pool, peers) {
+			pool.Push(i.tile.id)
+			return true
+		}
+		pool.Push(i.tile.id)
+	}
+	return false
+}
+
+func (g *Grid) SetCenter(idxr int, idxc int, pool *TilePool, peers *ValidPeers) bool {
+	if idxc >= g.dimx {
+		idxc = 1
+		idxr++
+	}
+	if idxr >= g.dimy {
+		return true
+	}
+	le := g.grid[idxr][idxc-1].EdgeReverse(0)
+	te := g.grid[idxr-1][idxc].EdgeReverse(3)
+	for _, i := range peers.GetRightDown(le, te) {
+		if !pool.Has(i.tile.id) {
+			continue
+		}
+		g.grid[idxr][idxc] = i
+		pool.Pop(i.tile.id)
+		if g.SetCenter(idxr, idxc+1, pool, peers) {
+			pool.Push(i.tile.id)
+			return true
+		}
+		pool.Push(i.tile.id)
+	}
+	return false
+}
+
+func mapCoords(grid [][]byte, tr Transform, i, j int, dim int) byte {
+	ip := dim - i - 1
+	jp := dim - j - 1
+	if tr.flip {
+		switch tr.rotation % 4 {
+		case 0:
+			return grid[ip][j]
+		case 1:
+			return grid[jp][ip]
+		case 2:
+			return grid[i][jp]
+		case 3:
+			return grid[j][i]
+		}
+	} else {
+		switch tr.rotation % 4 {
+		case 0:
+			return grid[i][j]
+		case 1:
+			return grid[j][ip]
+		case 2:
+			return grid[ip][jp]
+		case 3:
+			return grid[jp][i]
+		}
+	}
+	return 0
+}
+
+func matchMonster(grid [][]byte, midx [][]int, tr Transform, i, j int, dim int) bool {
+	for r, row := range midx {
+		for _, c := range row {
+			if mapCoords(grid, tr, i+r, j+c, dim) != '#' {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+const (
+	monster = `                  # 
+#    ##    ##    ###
+ #  #  #  #  #  #   `
+)
+
 func main() {
 	file, err := os.Open(puzzleInput)
 	if err != nil {
@@ -249,9 +395,11 @@ func main() {
 		}
 	}()
 
+	tileMap := map[int][][]byte{}
 	tiles := []Tile{}
 	tileID := 0
 	tile := [][]byte{}
+	var tileDim int
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -270,6 +418,7 @@ func main() {
 			if h != w {
 				log.Fatal("tile is not square")
 			}
+			tileDim = h
 			rf := 0
 			rb := 0
 			lf := 0
@@ -321,6 +470,7 @@ func main() {
 				l:  Edge{f: lf, b: lb},
 				b:  Edge{f: bf, b: bb},
 			})
+			tileMap[tileID] = tile
 			tileID = 0
 			tile = [][]byte{}
 			continue
@@ -338,14 +488,100 @@ func main() {
 	dim := int(squareSize)
 
 	validPeers := NewValidPeers()
-	tileIter := NewTileIter(tiles)
-	for t, ok := tileIter.Next(); ok; t, ok = tileIter.Next() {
-		validPeers.AddTrTile(t)
+	for iter := NewTileIter(tiles); iter.Next(); {
+		validPeers.AddTrTile(iter.Get())
 	}
 
-	_ = NewTilePool(tiles)
+	pool := NewTilePool(tiles)
+	grid := NewGrid(dim, dim)
 
-	_ = NewGrid(dim, dim)
+	foundLayout := false
+	for iter := NewTileIter(tiles); iter.Next(); {
+		k := iter.Get()
+		pool.Pop(k.tile.id)
+		if grid.SetTopLeft(k, pool, validPeers) {
+			pool.Push(k.tile.id)
+			foundLayout = true
+			break
+		}
+		pool.Push(k.tile.id)
+	}
+	if !foundLayout {
+		log.Fatal("Failed to find grid layout")
+	}
+	product := grid.grid[0][0].tile.id * grid.grid[0][grid.dimx-1].tile.id * grid.grid[grid.dimy-1][0].tile.id * grid.grid[grid.dimy-1][grid.dimx-1].tile.id
+	fmt.Println("Part 1:", product)
 
-	fmt.Println(dim)
+	pixelBlockDim := tileDim - 2
+	pixelsDim := pixelBlockDim * dim
+	pixels := make([][]byte, 0, pixelsDim)
+	for i := 0; i < pixelsDim; i++ {
+		pixels = append(pixels, make([]byte, pixelsDim))
+	}
+
+	pixelCount := 0
+	for gy, r := range grid.grid {
+		for gx, c := range r {
+			for i := 0; i < pixelBlockDim; i++ {
+				for j := 0; j < pixelBlockDim; j++ {
+					k := mapCoords(tileMap[c.tile.id], c.tr, i+1, j+1, tileDim)
+					pixels[gy*pixelBlockDim+i][gx*pixelBlockDim+j] = k
+					if k == '#' {
+						pixelCount++
+					}
+				}
+			}
+		}
+	}
+
+	monsterPixelCount := 0
+	monsterIdx := [][]int{}
+	var monsterDimX int
+	for _, i := range strings.Split(monster, "\n") {
+		monsterDimX = len(i)
+		row := []int{}
+		for n, j := range i {
+			if j == '#' {
+				row = append(row, n)
+				monsterPixelCount++
+			}
+		}
+		monsterIdx = append(monsterIdx, row)
+	}
+	monsterDimY := len(monsterIdx)
+
+	monsterCount := 0
+	for _, tr := range allTransforms {
+		for i := 0; i < pixelsDim-monsterDimY; i++ {
+			for j := 0; j < pixelsDim-monsterDimX; j++ {
+				if matchMonster(pixels, monsterIdx, tr, i, j, pixelsDim) {
+					monsterCount++
+				}
+			}
+		}
+		if monsterCount > 0 {
+			break
+		}
+	}
+
+	if monsterCount == 0 {
+		log.Fatal("No monsters found")
+	}
+
+	fmt.Println("Part 2:", pixelCount-monsterPixelCount*monsterCount)
+}
+
+func printPixels(pixels [][]byte, tr Transform, dim, tileDim int) {
+	for i := 0; i < dim; i++ {
+		if i%tileDim == 0 {
+			fmt.Println()
+		}
+		for j := 0; j < dim; j++ {
+			if j%tileDim == 0 {
+				fmt.Print(" ")
+			}
+			fmt.Print(string(mapCoords(pixels, tr, i, j, dim)))
+		}
+		fmt.Println()
+	}
 }
