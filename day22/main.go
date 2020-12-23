@@ -70,7 +70,7 @@ func (d *Deck) String() string {
 	s := &strings.Builder{}
 	for i := d.first; i != d.last; i = (i + 1) % d.capacity {
 		s.WriteString(strconv.Itoa(d.data[i]))
-		s.WriteString(",")
+		s.WriteByte(',')
 	}
 	return s.String()
 }
@@ -181,11 +181,16 @@ func main() {
 func playGame(deck1 *Deck, deck2 *Deck) bool {
 	states := map[string]struct{}{}
 	for deck1.Len() > 0 && deck2.Len() > 0 {
-		current := deck1.String() + ":" + deck2.String()
-		if _, ok := states[current]; ok {
+		current1 := deck1.String()
+		current2 := deck2.String()
+		if _, ok := states[current1]; ok {
 			return false
 		}
-		states[current] = struct{}{}
+		if _, ok := states[current2]; ok {
+			return false
+		}
+		states[current1] = struct{}{}
+		states[current2] = struct{}{}
 		v1, _ := deck1.Pop()
 		v2, _ := deck2.Pop()
 		if deck1.Len() >= v1 && deck2.Len() >= v2 {
