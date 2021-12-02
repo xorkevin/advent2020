@@ -1,51 +1,33 @@
 #!/bin/sh
 
-export benchargs="-w 8 -s basic -u millisecond"
-
-days=$(find . -maxdepth 1 -type d -name 'day*' -printf '%P,%f\n' | sort)
+set -e
 
 awkprg1=$(cat <<'EOF'
-/^Group/ {printf "%s", $2}
-/^Benchmark #1/ {printf "##go##"}
-/^Benchmark #2/ {printf "##rs##"}
-/^Time/ {printf "%s %s ", $2, $3}
-/^Range/ {printf "%s %s", $2, $3}
-/^Summary/ {printf "\n"; fflush()}
+/^bin/ {printf "%-8s %-8s %32s %32s %32s %32s %32s\n", "go", $2, $3, $4, $5, $6, $7; fflush()}
+/^target/ {printf "%-8s %-8s %32s %32s %32s %32s %32s\n", "rs", $2, $3, $4, $5, $6, $7; fflush()}
 EOF
 )
 
 awkprg2=$(cat <<'EOF'
-{printf "%s %s %s\n%s %s %s\n", $1, $2, $3, $1, $4, $5; fflush()}
-EOF
-)
-
-awkprg3=$(cat <<'EOF'
-{printf "%-8s %-8s %16s %16s %16s\n", $1, $2, $3, $5, $6; fflush()}
-EOF
-)
-
-awkprg4=$(cat <<'EOF'
-{mean[$2] += $3; min[$2] += $4; max[$2] += $5}
+{mean[$1] += $3; variance[$1] += $4^2; median[$1] += $5; min[$1] += $6; max[$1] += $7}
 END {
   for (i in mean) {
-    printf "%-8s %-8s %16s %16s %16s\n", "total", i, mean[i], min[i], max[i]
+    printf "%-8s %-8s %32s %32s %32s %32s %32s\n", i, "total", mean[i], sqrt(variance[i]), median[i], min[i], max[i]
   }
 }
 EOF
 )
 
-printf '%-8s %-8s %16s %16s %16s\n' "day" "lang" "mean (ms)" "min (ms)" "max (ms)" 1>&2
+days=$(find . -maxdepth 1 -type d -name 'day*' -printf '%P\n' | sort)
+
+statsdir=$(mktemp --tmpdir -d adventbench.XXXXXXXX)
+
+printf '%-8s %-8s %32s %32s %32s %32s %32s\n' 'lang' 'day' 'mean' 'stddev' 'median' 'min' 'max' 1>&2
+
 for i in $days; do
-  d=$(printf "$i" | cut -d , -f 1)
-  bin=$(printf "$i" | cut -d , -f 2)
-  printf 'Group %s\n' $bin
-  (cd "$d" && hyperfine $benchargs -L bin "./bin/$bin,./target/release/$bin" '{bin}' 2> /dev/null)
-done | sed -u \
-  -e 's/^[ ]*Time .* \([0-9.]\+\) ms .* \([0-9.]\+\) ms .*\[.*$/Time \1 \2/' \
-  -e 's/^[ ]*Range .* \([0-9.]\+\) ms .* \([0-9.]\+\) ms .*$/Range \1 \2/' \
-  | awk "$awkprg1" \
-  | awk -F '##' "$awkprg2" \
-  | awk "$awkprg3" \
-  | tee /dev/stderr \
-  | awk "$awkprg4" \
-  | sort
+  statsfile="$statsdir/$i.json"
+  cd "$i" && hyperfine -s basic --export-json "$statsfile" -w 8 -L bin "./bin/$i,./target/release/$i" '{bin}' 2>/dev/null && cd ".."
+  jq -r '.results[] | (.command | capture("(?<kind>(bin|target/release))/day(?<day>[0-9]+)$")) as $cmd | "\($cmd.kind) \($cmd.day) \(.mean) \(.stddev) \(.median) \(.min) \(.max)"' "$statsfile"
+done | awk "$awkprg1" | tee /dev/stderr | awk "$awkprg2"
+
+rm -r "$statsdir"
